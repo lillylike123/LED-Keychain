@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bitlace Studio - Wireless & Serial Controller</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .led-off {
+      background-color: #1e1e2e;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+    }
+    .led-on {
+      background-color: #ef4444;
+      box-shadow: 0 0 15px #ef4444, 0 0 5px #fca5a5, inset 0 1px 2px #ffffff;
+    }
+    .led-cell {
+      transition: background-color 0.1s ease, box-shadow 0.1s ease;
+    }
+  </style>
+</head>
+<body class="bg-[#0b0b10] text-[#e2e2e9] min-h-screen flex flex-col selection:bg-red-500 selection:text-white">
+
+  <header class="border-b border-[#222235] bg-[#0e0e18] py-4 px-6 shadow-md">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-rose-400 flex items-center justify-center shadow-lg shadow-red-900/30">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 21l8.904-4.43c.8-.399 1.442-1.09 1.776-1.92L21 9l-9 4.5-2.187 2.404z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 21c0-.5.5-1 1-1h11" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            Bitlace Live Companion <span class="text-xs bg-red-950 text-red-400 font-semibold px-2 py-0.5 rounded-full border border-red-900">v2.0</span>
+          </h1>
+          <p class="text-xs text-[#8c8ca3]">Live Drawing over Web Serial (USB-C) & Web Bluetooth (BLE)</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-xs text-[#8c8ca3] hidden md:inline">Browser Compatibility: Chrome, Edge, Opera</span>
+        <div class="h-4 w-px bg-[#222235] hidden md:block"></div>
+        <div class="text-xs font-semibold px-3 py-1 bg-red-500/10 text-red-400 rounded-full border border-red-900/30">Active System Ready</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    
+    <!-- Left Panel: Connection Controls & Realtime Matrix Canvas -->
+    <div class="lg:col-span-5 flex flex-col gap-6">
+      <!-- Connection card -->
+      <div class="bg-[#0e0e18] border border-[#222235] rounded-2xl p-5 shadow-lg">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-3">Pendant Hardware Connection</h2>
+        
+        <div class="grid grid-cols-2 gap-2 mb-4">
+          <button id="mode-serial-btn" class="py-2.5 rounded-lg text-xs font-semibold border bg-red-600/10 text-red-400 border-red-500/30 transition-all flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>
+            USB Serial (Direct)
+          </button>
+          <button id="mode-ble-btn" class="py-2.5 rounded-lg text-xs font-semibold border bg-transparent text-[#8c8ca3] border-[#222235] hover:text-white transition-all flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18V6m0 12l5-4m-5 4l-5-4M12 6l5 4m-5-4L7 10" /></svg>
+            Bluetooth BLE
+          </button>
+        </div>
+
+        <button id="connect-btn" class="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-semibold text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2">
+          <span id="conn-spinner" class="hidden w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          <span id="conn-text">Connect to Pendant</span>
+        </button>
+
+        <div id="conn-status" class="mt-3 text-center text-xs text-[#8c8ca3] flex items-center justify-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-zinc-600 inline-block" id="status-dot"></span>
+          <span id="status-label">Disconnected</span>
+        </div>
+      </div>
+
+      <!-- Live matrix container representing physical pendant -->
+      <div class="bg-[#0e0e18] border border-[#222235] rounded-3xl p-6 shadow-xl relative flex flex-col items-center">
+        <!-- Lanyard Strap representation -->
+        <div class="absolute -top-5 left-1/2 transform -translate-x-1/2 w-12 h-6 bg-[#0e0e18] border-t border-l border-r border-[#222235] rounded-t-xl flex justify-center pt-1.5">
+          <div class="w-5 h-2.5 bg-[#0b0b10] rounded-full border border-[#222235]"></div>
+        </div>
+
+        <div class="w-full text-center mb-4">
+          <span class="text-[10px] font-bold tracking-widest text-red-500/80 uppercase">Pendant Design Preview</span>
+        </div>
+
+        <!-- 8x8 matrix display -->
+        <div class="bg-[#050508] p-5 rounded-2xl border border-red-950/40 w-full aspect-square flex flex-col justify-between">
+          <div id="matrix-grid" class="grid grid-cols-8 gap-2 w-full h-full select-none">
+            <!-- Dynamically generated LED cells -->
+          </div>
+        </div>
+
+        <!-- Matrix Controls underneath -->
+        <div class="w-full mt-4 flex items-center justify-between gap-2 pt-3 border-t border-[#1c1c2b]">
+          <button id="matrix-clear" class="px-3 py-1.5 bg-[#1c1c2b] hover:bg-red-950/40 hover:text-red-400 border border-[#2b2b3f] hover:border-red-900 rounded-lg text-xs font-semibold transition-all">
+            Clear Grid
+          </button>
+          <button id="matrix-invert" class="px-3 py-1.5 bg-[#1c1c2b] hover:bg-[#252538] border border-[#2b2b3f] rounded-lg text-xs font-semibold transition-all">
+            Invert
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Creative Studio, Presets, and Saved Gallery -->
+    <div class="lg:col-span-7 flex flex-col gap-6">
+      
+      <!-- Presets & Quick Actions -->
+      <div class="bg-[#0e0e18] border border-[#222235] rounded-2xl p-6 shadow-lg">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-3">Load Preset Designs</h2>
+        <div class="grid grid-cols-3 sm:grid-cols-5 gap-3">
+          <button class="preset-btn p-3 bg-[#131322] hover:bg-[#1b1b32] border border-[#222235] rounded-xl flex flex-col items-center gap-1.5 transition-all" data-preset="heart">
+            <span class="text-xl">❤️</span>
+            <span class="text-[10px] font-semibold text-[#8c8ca3]">Heart</span>
+          </button>
+          <button class="preset-btn p-3 bg-[#131322] hover:bg-[#1b1b32] border border-[#222235] rounded-xl flex flex-col items-center gap-1.5 transition-all" data-preset="smiley">
+            <span class="text-xl">😊</span>
+            <span class="text-[10px] font-semibold text-[#8c8ca3]">Smiley</span>
+          </button>
+          <button class="preset-btn p-3 bg-[#131322] hover:bg-[#1b1b32] border border-[#222235] rounded-xl flex flex-col items-center gap-1.5 transition-all" data-preset="skull">
+            <span class="text-xl">💀</span>
+            <span class="text-[10px] font-semibold text-[#8c8ca3]">Skull</span>
+          </button>
+          <button class="preset-btn p-3 bg-[#131322] hover:bg-[#1b1b32] border border-[#222235] rounded-xl flex flex-col items-center gap-1.5 transition-all" data-preset="ghost">
+            <span class="text-xl">👻</span>
+            <span class="text-[10px] font-semibold text-[#8c8ca3]">Ghost</span>
+          </button>
+          <button class="preset-btn p-3 bg-[#131322] hover:bg-[#1b1b32] border border-[#222235] rounded-xl flex flex-col items-center gap-1.5 transition-all" data-preset="invader">
+            <span class="text-xl">👾</span>
+            <span class="text-[10px] font-semibold text-[#8c8ca3]">Alien</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Saved Designs / Memory Gallery -->
+      <div class="bg-[#0e0e18] border border-[#222235] rounded-2xl p-6 shadow-lg">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-sm font-bold text-white uppercase tracking-wider">Saved Studio Gallery</h2>
+          <div class="flex items-center gap-2">
+            <input id="save-name-input" type="text" placeholder="Design Name..." class="bg-[#131322] border border-[#222235] rounded-lg px-3 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-red-500 max-w-[130px]">
+            <button id="save-design-btn" class="px-3 py-1 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-lg text-xs transition-all">Save Drawing</button>
+          </div>
+        </div>
+
+        <div id="gallery-container" class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-h-[160px] overflow-y-auto pr-1">
+          <!-- Dynamically populated saved cards -->
+          <div id="empty-gallery-msg" class="col-span-full py-8 text-center text-xs text-[#5d5d75]">No designs saved yet. Draw something and save it!</div>
+        </div>
+      </div>
+
+      <!-- Live Code / Export Panel -->
+      <div class="bg-[#0e0e18] border border-[#222235] rounded-2xl p-6 shadow-lg flex-grow flex flex-col">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-2">Pendant Hex Representation</h2>
+        <p class="text-xs text-[#8c8ca3] mb-4">These 8 hex codes are sent to your Seeed board to display this drawing row-by-row.</p>
+        
+        <div class="bg-[#050508] border border-[#1c1c2b] p-4 rounded-xl flex items-center justify-between">
+          <div class="mono text-xs text-emerald-400 tracking-wider font-semibold" id="hex-output">
+            [ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ]
+          </div>
+          <button id="copy-hex-btn" class="px-3 py-1 bg-[#131322] hover:bg-[#1b1b32] border border-[#222235] text-white rounded-lg text-xs font-semibold transition-all">
+            Copy Array
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <footer class="border-t border-[#222235] bg-[#07070c] py-4 text-center text-xs text-[#5d5d75]">
+    Bitlace Companion Studio • Created for Seeed Studio XIAO ESP32-C3 controllers
+  </footer>
+
+  <!-- App Logic script -->
+  <script>
+    let currentMode = 'serial'; // 'serial', 'ble'
+    let matrixState = Array(64).fill(false);
+    let isMouseDown = false;
+    let drawValue = true;
+
+    // Web Serial properties
+    let serialPort = null;
+    let serialWriter = null;
+
+    // Web BLE properties
+    let bleDevice = null;
+    let bleCharacteristic = null;
+    const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+    const CHAR_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+
+    // Preset values
+    const PRESETS = {
+      heart: [
+        0,0,0,0,0,0,0,0,
+        0,1,1,0,0,1,1,0,
+        1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,
+        0,1,1,1,1,1,1,0,
+        0,0,1,1,1,1,0,0,
+        0,0,0,1,1,0,0,0,
+        0,0,0,0,0,0,0,0
+      ],
+      smiley: [
+        0,0,0,0,0,0,0,0,
+        0,1,1,0,0,1,1,0,
+        0,1,1,0,0,1,1,0,
+        0,0,0,0,0,0,0,0,
+        1,0,0,0,0,0,0,1,
+        0,1,0,0,0,0,1,0,
+        0,0,1,1,1,1,0,0,
+        0,0,0,0,0,0,0,0
+      ],
+      skull: [
+        0,0,1,1,1,1,0,0,
+        0,1,1,1,1,1,1,0,
+        1,0,1,1,1,1,0,1,
+        1,0,1,1,1,1,0,1,
+        0,1,1,0,0,1,1,0,
+        0,1,1,1,1,1,1,0,
+        0,0,1,0,0,1,0,0,
+        0,0,1,0,0,1,0,0
+      ],
+      ghost: [
+        0,0,1,1,1,1,0,0,
+        0,1,1,1,1,1,1,0,
+        1,0,1,1,1,1,0,1,
+        1,0,1,1,1,1,0,1,
+        1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,
+        1,0,1,0,1,0,1,0,
+        0,0,0,0,0,0,0,0
+      ],
+      invader: [
+        0,0,1,0,0,1,0,0,
+        0,0,0,1,1,0,0,0,
+        0,1,1,1,1,1,1,0,
+        1,1,0,1,1,0,1,1,
+        1,1,1,1,1,1,1,1,
+        0,0,1,1,1,1,0,0,
+        0,1,0,0,0,0,1,0,
+        1,0,0,0,0,0,0,1
+      ]
+    };
+
+    // DOM selectors
+    const gridContainer = document.getElementById('matrix-grid');
+    const connectBtn = document.getElementById('connect-btn');
+    const connSpinner = document.getElementById('conn-spinner');
+    const connText = document.getElementById('conn-text');
+    const connStatus = document.getElementById('conn-status');
+    const statusDot = document.getElementById('status-dot');
+    const statusLabel = document.getElementById('status-label');
+    const modeSerialBtn = document.getElementById('mode-serial-btn');
+    const modeBleBtn = document.getElementById('mode-ble-btn');
+    const matrixClear = document.getElementById('matrix-clear');
+    const matrixInvert = document.getElementById('matrix-invert');
+    const hexOutput = document.getElementById('hex-output');
+    const copyHexBtn = document.getElementById('copy-hex-btn');
+    const saveNameInput = document.getElementById('save-name-input');
+    const saveDesignBtn = document.getElementById('save-design-btn');
+    const galleryContainer = document.getElementById('gallery-container');
+    const emptyMsg = document.getElementById('empty-gallery-msg');
+
+    // Set Connection Mode
+    modeSerialBtn.addEventListener('click', () => {
+      currentMode = 'serial';
+      modeSerialBtn.className = "py-2.5 rounded-lg text-xs font-semibold border bg-red-600/10 text-red-400 border-red-500/30 transition-all flex items-center justify-center gap-1.5";
+      modeBleBtn.className = "py-2.5 rounded-lg text-xs font-semibold border bg-transparent text-[#8c8ca3] border-[#222235] hover:text-white transition-all flex items-center justify-center gap-1.5";
+      updateConnectionState(false);
+    });
+
+    modeBleBtn.addEventListener('click', () => {
+      currentMode = 'ble';
+      modeBleBtn.className = "py-2.5 rounded-lg text-xs font-semibold border bg-red-600/10 text-red-400 border-red-500/30 transition-all flex items-center justify-center gap-1.5";
+      modeSerialBtn.className = "py-2.5 rounded-lg text-xs font-semibold border bg-transparent text-[#8c8ca3] border-[#222235] hover:text-white transition-all flex items-center justify-center gap-1.5";
+      updateConnectionState(false);
+    });
+
+    // Create 8x8 Grid
+    function createGrid() {
+      gridContainer.innerHTML = '';
+      for (let i = 0; i < 64; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'led-cell w-full aspect-square rounded-full led-off cursor-pointer';
+        cell.dataset.index = i;
+
+        cell.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          isMouseDown = true;
+          drawValue = !matrixState[i];
+          matrixState[i] = drawValue;
+          updateCellDisplay(cell, drawValue);
+          onMatrixChange();
+        });
+
+        cell.addEventListener('mouseenter', () => {
+          if (isMouseDown) {
+            matrixState[i] = drawValue;
+            updateCellDisplay(cell, drawValue);
+            onMatrixChange();
+          }
+        });
+
+        gridContainer.appendChild(cell);
+      }
+    }
+
+    function updateCellDisplay(cell, active) {
+      if (active) {
+        cell.classList.replace('led-off', 'led-on');
+      } else {
+        cell.classList.replace('led-on', 'led-off');
+      }
+    }
+
+    function syncGridDisplay() {
+      const cells = gridContainer.children;
+      for (let i = 0; i < 64; i++) {
+        updateCellDisplay(cells[i], matrixState[i]);
+      }
+    }
+
+    // Global listeners for drawing drag
+    window.addEventListener('mouseup', () => { isMouseDown = false; });
+
+    // Calculate hex representations
+    function calculateHexArray() {
+      const bytes = [];
+      for (let r = 0; r < 8; r++) {
+        let rowByte = 0;
+        for (let c = 0; c < 8; c++) {
+          const idx = r * 8 + c;
+          if (matrixState[idx]) {
+            rowByte |= (1 << (7 - c));
+          }
+        }
+        bytes.push(rowByte);
+      }
+      return bytes;
+    }
+
+    function renderHexOutput() {
+      const bytes = calculateHexArray();
+      const strArray = bytes.map(b => '0x' + b.toString(16).toUpperCase().padStart(2, '0'));
+      hexOutput.innerText = `[ ${strArray.join(', ')} ]`;
+    }
+
+    // Matrix Action Triggers
+    matrixClear.addEventListener('click', () => {
+      matrixState.fill(false);
+      syncGridDisplay();
+      onMatrixChange();
+    });
+
+    matrixInvert.addEventListener('click', () => {
+      matrixState = matrixState.map(s => !s);
+      syncGridDisplay();
+      onMatrixChange();
+    });
+
+    // Preset Buttons
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const presetKey = btn.dataset.preset;
+        if (PRESETS[presetKey]) {
+          matrixState = [...PRESETS[presetKey]];
+          syncGridDisplay();
+          onMatrixChange();
+        }
+      });
+    });
+
+    // Hardware Sender Routines
+    async function onMatrixChange() {
+      renderHexOutput();
+      const bytes = calculateHexArray();
+      
+      // 1. Web Serial Transmission
+      if (currentMode === 'serial' && serialWriter) {
+        try {
+          const dataBuffer = new Uint8Array(bytes);
+          await serialWriter.write(dataBuffer);
+        } catch (e) {
+          console.error("Serial write failed", e);
+        }
+      }
+
+      // 2. Web BLE Transmission
+      if (currentMode === 'ble' && bleCharacteristic) {
+        try {
+          const dataBuffer = new Uint8Array(bytes);
+          await bleCharacteristic.writeValue(dataBuffer);
+        } catch (e) {
+          console.error("Bluetooth write failed", e);
+        }
+      }
+    }
+
+    // Connect trigger
+    connectBtn.addEventListener('click', async () => {
+      if (currentMode === 'serial') {
+        if (serialPort) {
+          disconnectSerial();
+        } else {
+          await connectSerial();
+        }
+      } else {
+        if (bleDevice) {
+          disconnectBLE();
+        } else {
+          await connectBLE();
+        }
+      }
+    });
+
+    // Web Serial Logic
+    async function connectSerial() {
+      if (!("serial" in navigator)) {
+        alert("Your web browser does not support Web Serial. Please use Google Chrome or Edge.");
+        return;
+      }
+      showLoading(true);
+      try {
+        serialPort = await navigator.serial.requestPort();
+        await serialPort.open({ baudRate: 115200 });
+        serialWriter = serialPort.writable.getWriter();
+        updateConnectionState(true, "Serial Connected via USB");
+        onMatrixChange(); // Send initial state
+      } catch (e) {
+        console.error("Failed to open Serial port:", e);
+        updateConnectionState(false);
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    function disconnectSerial() {
+      if (serialWriter) {
+        serialWriter.releaseLock();
+        serialWriter = null;
+      }
+      if (serialPort) {
+        serialPort.close();
+        serialPort = null;
+      }
+      updateConnectionState(false);
+    }
+
+    // Web Bluetooth Logic
+    async function connectBLE() {
+      if (!navigator.bluetooth) {
+        alert("Your browser does not support Web Bluetooth. Please run Chrome or use a BLE-compatible mobile app.");
+        return;
+      }
+      showLoading(true);
+      try {
+        bleDevice = await navigator.bluetooth.requestDevice({
+          filters: [{ name: "Bitlace Pendant" }],
+          optionalServices: [SERVICE_UUID]
+        });
+
+        const server = await bleDevice.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        bleCharacteristic = await service.getCharacteristic(CHAR_UUID);
+        
+        bleDevice.addEventListener('gattserverdisconnected', onBLEDisconnected);
+        updateConnectionState(true, "Bluetooth BLE Connected");
+        onMatrixChange();
+      } catch (e) {
+        console.error("BLE connection error:", e);
+        updateConnectionState(false);
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    function disconnectBLE() {
+      if (bleDevice && bleDevice.gatt.connected) {
+        bleDevice.gatt.disconnect();
+      }
+      onBLEDisconnected();
+    }
+
+    function onBLEDisconnected() {
+      bleDevice = null;
+      bleCharacteristic = null;
+      updateConnectionState(false);
+    }
+
+    // Connection Helpers
+    function showLoading(active) {
+      if (active) {
+        connSpinner.classList.remove('hidden');
+        connectBtn.disabled = true;
+      } else {
+        connSpinner.classList.add('hidden');
+        connectBtn.disabled = false;
+      }
+    }
+
+    function updateConnectionState(connected, message = "") {
+      if (connected) {
+        connectBtn.className = "w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-[#8c8ca3] font-semibold text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2";
+        connText.innerText = "Disconnect Pendant";
+        statusDot.className = "w-2 h-2 rounded-full bg-emerald-500 inline-block";
+        statusLabel.innerText = message || "Connected";
+      } else {
+        connectBtn.className = "w-full py-3 bg-red-600 hover:bg-red-500 text-white font-semibold text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2";
+        connText.innerText = "Connect to Pendant";
+        statusDot.className = "w-2 h-2 rounded-full bg-zinc-600 inline-block";
+        statusLabel.innerText = "Disconnected";
+        serialPort = null;
+        serialWriter = null;
+        bleDevice = null;
+        bleCharacteristic = null;
+      }
+    }
+
+    // Gallery State Management
+    let gallery = [];
+
+    function loadGallery() {
+      const data = localStorage.getItem('bitlace_gallery');
+      if (data) {
+        gallery = JSON.parse(data);
+      } else {
+        gallery = [];
+      }
+      renderGallery();
+    }
+
+    function saveToGallery(name) {
+      if (!name) return;
+      const design = {
+        name: name,
+        matrix: [...matrixState]
+      };
+      gallery.push(design);
+      localStorage.setItem('bitlace_gallery', JSON.stringify(gallery));
+      renderGallery();
+    }
+
+    function deleteFromGallery(index) {
+      gallery.splice(index, 1);
+      localStorage.setItem('bitlace_gallery', JSON.stringify(gallery));
+      renderGallery();
+    }
+
+    function renderGallery() {
+      galleryContainer.innerHTML = '';
+      if (gallery.length === 0) {
+        galleryContainer.appendChild(emptyMsg);
+        return;
+      }
+
+      gallery.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = "p-2 bg-[#131322] border border-[#222235] rounded-xl flex flex-col justify-between items-center relative group";
+
+        // Draw miniature preview
+        const preview = document.createElement('div');
+        preview.className = "grid grid-cols-8 gap-0.5 w-12 h-12 mb-2 pointer-events-none";
+        for (let i = 0; i < 64; i++) {
+          const pixel = document.createElement('div');
+          pixel.className = `rounded-full ${item.matrix[i] ? 'bg-red-500' : 'bg-zinc-800'}`;
+          preview.appendChild(pixel);
+        }
+
+        const label = document.createElement('div');
+        label.className = "text-[10px] text-center text-[#8c8ca3] truncate w-full font-medium px-1";
+        label.innerText = item.name;
+
+        // Overlay Action buttons
+        const actionOverlay = document.createElement('div');
+        actionOverlay.className = "absolute inset-0 bg-black/80 rounded-xl flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150";
+
+        const loadBtn = document.createElement('button');
+        loadBtn.className = "px-2 py-1 bg-red-600 text-white rounded text-[9px] font-bold";
+        loadBtn.innerText = "LOAD";
+        loadBtn.onclick = () => {
+          matrixState = [...item.matrix];
+          syncGridDisplay();
+          onMatrixChange();
+        };
+
+        const delBtn = document.createElement('button');
+        delBtn.className = "px-2 py-1 bg-zinc-800 text-red-400 rounded text-[9px] font-bold";
+        delBtn.innerText = "DEL";
+        delBtn.onclick = () => deleteFromGallery(index);
+
+        actionOverlay.appendChild(loadBtn);
+        actionOverlay.appendChild(delBtn);
+        card.appendChild(preview);
+        card.appendChild(label);
+        card.appendChild(actionOverlay);
+
+        galleryContainer.appendChild(card);
+      });
+    }
+
+    saveDesignBtn.addEventListener('click', () => {
+      const name = saveNameInput.value.trim();
+      if (name) {
+        saveToGallery(name);
+        saveNameInput.value = '';
+      }
+    });
+
+    copyHexBtn.addEventListener('click', () => {
+      const text = hexOutput.innerText;
+      // Copy implementation
+      const tempInput = document.createElement('input');
+      tempInput.value = text;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempInput);
+      
+      const prevText = copyHexBtn.innerText;
+      copyHexBtn.innerText = "Copied!";
+      copyHexBtn.classList.replace('bg-[#131322]', 'bg-emerald-950/40');
+      copyHexBtn.classList.add('text-emerald-400', 'border-emerald-800');
+      setTimeout(() => {
+        copyHexBtn.innerText = prevText;
+        copyHexBtn.className = "px-3 py-1 bg-[#131322] hover:bg-[#1b1b32] border border-[#222235] text-white rounded-lg text-xs font-semibold transition-all";
+      }, 2000);
+    });
+
+    // Run Initializer
+    createGrid();
+    loadGallery();
+    renderHexOutput();
+  </script>
+</body>
+</html>

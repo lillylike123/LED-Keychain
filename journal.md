@@ -64,7 +64,7 @@ After tedious work and lots of trial and error, I was able to finish my PCB and 
 
 
 
-6:30 - 2 hours
+6:30 - 2.5 hours
 
 Powered through (practically) finishing my first-ever hardware project in under 2 days.
 In a time crunch, I needed to create a 3D case for my finished PCB and make sure it could be used as a keychain. 

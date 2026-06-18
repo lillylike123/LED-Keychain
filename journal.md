@@ -72,6 +72,7 @@ I used TinkerCad originally to do the case, but then later I tried using OpenSCA
 From this whole 3D case making experience, I do want to try Fusion 360 next time as I have seen that several people recomend in for 3D designing. 
 I designed two separate components: a case and a lid. It was square and rounded with a hole to put a keychain ring.
 I ensured that the case would fit and it would make sure that it would be able to be assembled in the future.
+I also finished coding the microcontroller and the motion sensors to ensure that it would change animations!
 
 <img width="619" height="466" alt="image" src="https://github.com/user-attachments/assets/10e06cb0-550c-4a5a-a64b-c16cf6ebf1c4" />
 
